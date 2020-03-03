@@ -87,7 +87,9 @@ class UserVK:
             except KeyError:
                 members_count = 0
             result_list.append({'name': name, 'gid': gid, 'members_count': members_count})
-        pprint(result_list)
+        # pprint(result_list)
+        with open('groups.json', 'w', encoding='utf-8') as data_file:
+            json.dump(result_list, data_file, ensure_ascii=False, indent=2)
         # diff_list = list()
         # for curr_group in self.groups_diff:
         #     print(curr_group)
