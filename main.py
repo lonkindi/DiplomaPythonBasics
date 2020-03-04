@@ -3,8 +3,12 @@ import time
 import json
 from pprint import pprint
 
-access_token = '73eaea320bdc0d3299faa475c196cfea1c4df9da4c6d291633f9fe8f83c08c4de2a3abf89fbc3ed8a44e1'
-g_diff = {32653825, 31234561, 142573065, 101095054, 79851157, 115260441, 118840613, 55706674, 36220599, 102532920, 33587514, 68812734, 262340, 79798470, 123119686, 71888712, 38290762, 89931, 80650444, 131099725, 54012242, 111410132, 69786071, 124319704, 83460959, 28778720, 114735455, 148095071, 44150887, 31916136, 40567146, 136958443, 70905722, 92471547, 37735548, 32405757}
+vk_token = '73eaea320bdc0d3299faa475c196cfea1c4df9da4c6d291633f9fe8f83c08c4de2a3abf89fbc3ed8a44e1'
+g_diff = {32653825, 31234561, 142573065, 101095054, 79851157, 115260441, 118840613, 55706674, 36220599, 102532920,
+          33587514, 68812734, 262340, 79798470, 123119686, 71888712, 38290762, 89931, 80650444, 131099725, 54012242,
+          111410132, 69786071, 124319704, 83460959, 28778720, 114735455, 148095071, 44150887, 31916136, 40567146,
+          136958443, 70905722, 92471547, 37735548, 32405757}
+
 
 
 class UserVK:
@@ -15,8 +19,8 @@ class UserVK:
         self.user_id = uid
         self.friends_set = self.get_friends()
         self.groups_set = self.get_groups()
-        #self.groups_heap = self.get_groups_heap(self.friends_set)
-        self.groups_diff = g_diff #self.groups_set - self.groups_heap
+        # self.groups_heap = self.get_groups_heap(self.friends_set)
+        self.groups_diff = g_diff  # self.groups_set - self.groups_heap
 
     def get_params(self):
         return dict(
@@ -56,7 +60,7 @@ class UserVK:
         if not uid:
             uid = self.user_id
         params['user_id'] = uid
-        #params['extended'] = extended
+        # params['extended'] = extended
         response = requests.get('https://api.vk.com/method/groups.get', params)
         resp_err = response.json().get('error')
         if not resp_err:
@@ -95,20 +99,64 @@ class UserVK:
         #     print(curr_group)
 
 
+def users_search(uid):
+    result_id = None
+    params = dict(
+        access_token=vk_token,
+        v='5.89'
+    )
+    if str(uid).isnumeric():
+        resp = None
+        params['user_id'] = uid
+        response = requests.get('https://api.vk.com/method/users.get', params)
+        resp = response.json()
+        user_deactivated = None#response.json()['response'][0].get('deactivated')
 
+        # print(response.json()['response'][0].get('deactivated'))
+        try:
+            user_deactivated = resp['response'][0]['deactivated']
+            result_id = resp['response'][0]['id']
+        except IndexError:
+            result_id = None
+        except TypeError:
+            result_id = None
+        except KeyError:
+            result_id = None
+        if user_deactivated != None:
+            result_id = user_deactivated
+    else:
+        params['q'] = uid
+        response = requests.get('https://api.vk.com/method/users.search', params)
+        resp = response.json()
+        print('resp=', resp)
+        if resp['response']['count'] == 0:
+            result_id = None
+        elif resp['response']['count'] > 1:
+            result_id = 'many'
+        else:
+            result_id = resp['response']['items'][0]['id']
+    return result_id
 
-if __name__ == '__main__':
-    user_id = 327379059  # input('Введите id пользователя ВК или его имя: ')
-    test_user = UserVK(access_token, user_id)
+if __name__ == '__main__': #armo.appacha 24863449 27406252 10754162
+    input_id = 'armo.appacha'  # input('Введите id пользователя ВК или его имя: ')
+    user_id = users_search(input_id)
+    print('user_id=', user_id)
+    if user_id == None:
+        print(f'Пользователь "{input_id}" не найден. Проверьте вводимые данные.')
+    elif user_id == 'many':
+        print(f'По запросу "{input_id}" найдено несколько пользователей. Уточните имя.')
+    elif user_id in ['deleted', 'banned']:
+        print(f'Пользователь "{input_id}" заблокирован или удалён. Анализ невозможен.')
+    else:
+        print(f'Пользователь "{input_id}" найден.')
+        # test_user = UserVK(vk_token, user_id)
 
     # print('Заблокированных или приватных профилей друзей:', test_user.banned_friends)
     # print('Добавлено друзей: ', len(test_user.friends_set))
     # print('Количество групп, в которых пользователь является участником: ', len(test_user.groups_set))
     # print('Общее количество групп у всех друзей пользователя: ', len(test_user.groups_heap))
-    print('Количество групп пользователя, в которых не состоит ни один из его друзей: ', len(test_user.groups_diff))
+    # print('Количество групп пользователя, в которых не состоит ни один из его друзей: ', len(test_user.groups_diff))
 
-    test_user.output_diff()
-
-
+    # test_user.output_diff()
 
 # 'af9c7f37dc361ad97***e979d4be8143d4e6bc1c2466a4722c1f3fefc185e107719ebaa66a8ff92cdf3d8'
