@@ -19,21 +19,25 @@ class UserVK:
         self.user_id = uid
         self.friends_set = self.get_friends()
         self.groups_set = self.get_groups()
-        # self.groups_heap = self.get_groups_heap(self.friends_set)
-        self.groups_diff = g_diff  # self.groups_set - self.groups_heap
+        self.groups_heap = self.get_groups_heap(self.friends_set)
+        self.groups_diff = self.groups_set - self.groups_heap
 
     def get_params(self):
         return dict(
             user_id=self.user_id,
             access_token=self.token,
-            v='5.89'
+            v='5.103'
         )
 
     def get_groups_heap(self, f_list):
         friend_set = set()
         for friend in f_list:
+            # print('friend', friend)
             time.sleep(1 / 3)
-            friend_set = friend_set | self.get_groups(uid=friend)
+            # print('friend_set',friend_set)
+            friend_groups = self.get_groups(uid=friend)
+            # print('friend_groups', friend_groups)
+            friend_set = friend_set | friend_groups
             print('*', end='')
         print()
         return friend_set
@@ -55,7 +59,7 @@ class UserVK:
         return friend_set
 
     def get_groups(self, uid=None):
-        groups_set = ''
+        groups_set = set()
         params = self.get_params()
         if not uid:
             uid = self.user_id
@@ -64,7 +68,8 @@ class UserVK:
         response = requests.get('https://api.vk.com/method/groups.get', params)
         resp_err = response.json().get('error')
         if not resp_err:
-            groups_set = response.json()['response']['items']
+            groups_set = set(response.json()['response']['items'])
+            # print('groups_set = ', groups_set)
         else:
             # pprint(response.json().get('error')['error_msg'])
             self.banned_friends += 1
@@ -79,10 +84,11 @@ class UserVK:
         params = self.get_params()
         params['fields'] = 'members_count'
         groups_diff_str = str(self.groups_diff)
+        print('groups_diff_str', groups_diff_str)
         params['group_ids'] = groups_diff_str
         response = requests.get('https://api.vk.com/method/groups.getById', params)
         resp = response.json()['response']
-        # pprint(resp)
+        pprint(response)
         for g_item in resp:
             name = g_item['name']
             gid = g_item['id']
@@ -103,16 +109,14 @@ def users_search(uid):
     result_id = None
     params = dict(
         access_token=vk_token,
-        v='5.89'
+        v='5.103'
     )
     if str(uid).isnumeric():
-        resp = None
         params['user_id'] = uid
         response = requests.get('https://api.vk.com/method/users.get', params)
         resp = response.json()
-        user_deactivated = None#response.json()['response'][0].get('deactivated')
-
-        # print(response.json()['response'][0].get('deactivated'))
+        # print('resp num =>', resp)
+        user_deactivated = None
         try:
             user_deactivated = resp['response'][0]['deactivated']
             result_id = resp['response'][0]['id']
@@ -127,36 +131,42 @@ def users_search(uid):
     else:
         params['q'] = uid
         response = requests.get('https://api.vk.com/method/users.search', params)
-        resp = response.json()
-        print('resp=', resp)
-        if resp['response']['count'] == 0:
-            result_id = None
-        elif resp['response']['count'] > 1:
+        resp = response.json()['response']
+        # print('resp word =>', resp)
+        if resp['count'] == 1:
+            if len(resp['items']) == 0:
+                result_id = 'banned'
+            else:
+                result_id = resp['items'][0]['id']
+        elif resp['count'] > 1:
+            # print("'items1': ", len(resp['items']))
             result_id = 'many'
-        else:
-            result_id = resp['response']['items'][0]['id']
     return result_id
 
-if __name__ == '__main__': #armo.appacha 24863449 27406252 10754162
-    input_id = 'armo.appacha'  # input('Введите id пользователя ВК или его имя: ')
+if __name__ == '__main__': #'armo.appacha' 24863449 27406252 10754162 d.lonkin
+    input_id = 'o.sevostyanova77'  # input('Введите id пользователя ВК или его имя: ')
     user_id = users_search(input_id)
-    print('user_id=', user_id)
+    # print('user_id=', user_id)
     if user_id == None:
         print(f'Пользователь "{input_id}" не найден. Проверьте вводимые данные.')
     elif user_id == 'many':
-        print(f'По запросу "{input_id}" найдено несколько пользователей. Уточните имя.')
-    elif user_id in ['deleted', 'banned']:
-        print(f'Пользователь "{input_id}" заблокирован или удалён. Анализ невозможен.')
+        print(f'По вашему запросу: "{input_id}" найдено несколько пользователей. Уточните имя.')
+    elif user_id == 'banned':
+        print(f'Пользователь "{input_id}" заблокирован. Анализ невозможен.')
+    elif user_id  == 'deleted':
+        print(f'Пользователь "{input_id}" удалён либо не существует. Анализ невозможен.')
     else:
-        print(f'Пользователь "{input_id}" найден.')
-        # test_user = UserVK(vk_token, user_id)
+        print(f'Пользователь "{input_id}" найден и будет исследован ...')
+    test_user = UserVK(vk_token, user_id)
 
-    # print('Заблокированных или приватных профилей друзей:', test_user.banned_friends)
-    # print('Добавлено друзей: ', len(test_user.friends_set))
-    # print('Количество групп, в которых пользователь является участником: ', len(test_user.groups_set))
-    # print('Общее количество групп у всех друзей пользователя: ', len(test_user.groups_heap))
-    # print('Количество групп пользователя, в которых не состоит ни один из его друзей: ', len(test_user.groups_diff))
+    print('Добавлено друзей: ', len(test_user.friends_set))
+    print('Заблокированных или приватных профилей друзей:', test_user.banned_friends)
+    print('Количество групп, в которых пользователь является участником: ', len(test_user.groups_set))
+    print('Общее количество групп у всех друзей пользователя: ', len(test_user.groups_heap))
+    print('Количество групп пользователя, в которых не состоит ни один из его друзей: ', len(test_user.groups_diff))
+    print('Группы пользователя, в которых не состоит ни один из его друзей: ', test_user.groups_diff)
 
-    # test_user.output_diff()
+
+    test_user.output_diff()
 
 # 'af9c7f37dc361ad97***e979d4be8143d4e6bc1c2466a4722c1f3fefc185e107719ebaa66a8ff92cdf3d8'
