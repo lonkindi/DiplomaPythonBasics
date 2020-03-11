@@ -55,7 +55,7 @@ class UserVK:
         # params['user_id'] = self.user_id
         response = requests.get('https://api.vk.com/method/friends.get', params)
         friend_set = set(response.json()['response']['items'])
-        print('Всего друзей: ', len(friend_set))
+        # print('Всего друзей: ', len(friend_set))
         return friend_set
 
     def get_groups(self, uid=None):
@@ -83,12 +83,16 @@ class UserVK:
         result_list = list()
         params = self.get_params()
         params['fields'] = 'members_count'
+        #groups_diff_str = '53672217, 94216909, 63184822'
         groups_diff_str = str(self.groups_diff)
-        print('groups_diff_str', groups_diff_str)
+        groups_diff_str = groups_diff_str.replace('{', '')
+        groups_diff_str = groups_diff_str.replace('}', '')
+        # print('groups_diff_str1', groups_diff_str)
+        # print('groups_diff_str', groups_diff_str)
         params['group_ids'] = groups_diff_str
         response = requests.get('https://api.vk.com/method/groups.getById', params)
         resp = response.json()['response']
-        pprint(response)
+        # pprint(response.json())
         for g_item in resp:
             name = g_item['name']
             gid = g_item['id']
@@ -100,6 +104,7 @@ class UserVK:
         # pprint(result_list)
         with open('groups.json', 'w', encoding='utf-8') as data_file:
             json.dump(result_list, data_file, ensure_ascii=False, indent=2)
+            print('Данные о "секретных" группах пользователя записаны в файл groups.json')
         # diff_list = list()
         # for curr_group in self.groups_diff:
         #     print(curr_group)
@@ -156,15 +161,15 @@ if __name__ == '__main__': #'armo.appacha' 24863449 27406252 10754162 d.lonkin
     elif user_id  == 'deleted':
         print(f'Пользователь "{input_id}" удалён либо не существует. Анализ невозможен.')
     else:
-        print(f'Пользователь "{input_id}" найден и будет исследован ...')
+        print(f'Пользователь "{input_id}" доступен для анализа ...')
     test_user = UserVK(vk_token, user_id)
 
-    print('Добавлено друзей: ', len(test_user.friends_set))
+    print('Друзей у пользователя: ', len(test_user.friends_set))
     print('Заблокированных или приватных профилей друзей:', test_user.banned_friends)
     print('Количество групп, в которых пользователь является участником: ', len(test_user.groups_set))
     print('Общее количество групп у всех друзей пользователя: ', len(test_user.groups_heap))
     print('Количество групп пользователя, в которых не состоит ни один из его друзей: ', len(test_user.groups_diff))
-    print('Группы пользователя, в которых не состоит ни один из его друзей: ', test_user.groups_diff)
+
 
 
     test_user.output_diff()
