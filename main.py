@@ -1,8 +1,6 @@
 import requests
-import time
 import json
 
-# 'af9c7f37dc361ad97***e979d4be8143d4e6bc1c2466a4722c1f3fefc185e107719ebaa66a8ff92cdf3d8'
 vk_token = '73eaea320bdc0d3299faa475c196cfea1c4df9da4c6d291633f9fe8f83c08c4de2a3abf89fbc3ed8a44e1'
 
 
@@ -31,16 +29,13 @@ class UserVK:
         params['fields'] = 'deactivated'
         response = requests.get('https://api.vk.com/method/friends.get', params)
         friend_dict = response.json()['response']['items']
-        # print('friend_dict', friend_dict)
         self.friends_total = len(friend_dict)
         for friend in friend_dict:
-            # print(friend.get('is_closed'))
             if friend.get('deactivated'):
                 self.banned_friends += 1
             elif not friend.get('is_closed'):
                 friend_set.add(friend['id'])
             else:
-                # print('friend', friend)
                 self.banned_friends += 1
         return friend_set
 
@@ -50,41 +45,35 @@ class UserVK:
         t_counter = len(f_list)
         temp_list = list()
         params = self.get_params()
+        response_list = list()
         for friend in f_list:
-            counter +=1
-            t_counter -=1
+            counter += 1
+            t_counter -= 1
             temp_list.append(friend)
             if counter == 25 or t_counter == 0:
-                params['code'] = f'var a = 0; var b =  {temp_list}; var s = ""; while (a != 25)'+'{s = s + API.groups.get({"user_id":b[a]}).items + ","; a = a + 1;}; return s;'
+                params[
+                    'code'] = f'var a = 0; var b =  {temp_list}; var s = ""; while (a != 25)' + '{s = s + API.groups.get({"user_id":b[a]}).items + ","; a = a + 1;}; return s;'
                 response = requests.get('https://api.vk.com/method/execute', params)
-                response_set = response.json()['response']
-                # for str_item in str_response_set:
-                #     str_item = int(str_item)
-                print("response_set=", response_set)
-                friends_groups_set = friends_groups_set | response.json()['response']
+                resp_list = response.json()['response'].split(',')
+                response_list = response_list + resp_list
                 counter = 0
                 temp_list.clear()
-            # time.sleep(1 / 3)
-            # friend_groups = self.get_groups(uid=friend)
-            # friends_groups_set = friends_groups_set | friend_groups
-            print('*', end='')
+                print('*', end='')
+        response_set = set()
+        for str_item in response_list:
+            if str_item != '':
+                response_set.add(int(str_item))
+        friends_groups_set = friends_groups_set | response_set
         print()
         return friends_groups_set
 
     def get_groups(self, uid=None):
-        groups_set = set()
         params = self.get_params()
         if not uid:
             uid = self.user_id
         params['user_id'] = uid
         response = requests.get('https://api.vk.com/method/groups.get', params)
-        resp_err = response.json().get('error')
-        if not resp_err:
-            groups_set = set(response.json()['response']['items'])
-        else:
-            print('uid ', uid)
-            print('resp_err', resp_err)
-            self.banned_friends += 1
+        groups_set = set(response.json()['response']['items'])
         return groups_set
 
     def output_diff(self):
@@ -120,9 +109,9 @@ def users_search(uid):
         params['user_id'] = int(uid)
         response = requests.get('https://api.vk.com/method/users.get', params)
         resp = response.json()
-        user_deactivated = None
+        user_deactivated = resp['response'][0].get('deactivated')
         try:
-            user_deactivated = resp['response'][0]['deactivated']
+            # user_deactivated =
             result_id = resp['response'][0]['id']
         except IndexError:
             result_id = None
@@ -147,7 +136,7 @@ def users_search(uid):
 
 
 if __name__ == '__main__':  # 'armo.appacha' 24863449 27406252 10754162 d.lonkin o.sevostyanova77 eshmargunov
-    input_id = 'o.sevostyanova77'  # input('Введите id пользователя ВК или его имя: ')
+    input_id = input('Введите id пользователя ВК или его имя: ')
     user_id = users_search(input_id)
     if user_id == None:
         print(f'Пользователь "{input_id}" не найден. Проверьте вводимые данные.')
@@ -163,6 +152,6 @@ if __name__ == '__main__':  # 'armo.appacha' 24863449 27406252 10754162 d.lonkin
         print('Друзей у пользователя: ', test_user.friends_total)
         print('Заблокированных или приватных профилей друзей:', test_user.banned_friends)
         print('Количество групп, в которых пользователь является участником: ', len(test_user.groups_set))
-        print('Общее количество групп у всех друзей пользователя: ', len(test_user.groups_heap))
+        print('Общее количество групп всех друзей пользователя: ', len(test_user.groups_heap))
         print('Количество групп пользователя, в которых не состоит ни один из его друзей: ', len(test_user.groups_diff))
         test_user.output_diff()
