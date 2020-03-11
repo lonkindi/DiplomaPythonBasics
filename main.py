@@ -2,11 +2,13 @@ import requests
 import time
 import json
 
+# 'af9c7f37dc361ad97***e979d4be8143d4e6bc1c2466a4722c1f3fefc185e107719ebaa66a8ff92cdf3d8'
 vk_token = '73eaea320bdc0d3299faa475c196cfea1c4df9da4c6d291633f9fe8f83c08c4de2a3abf89fbc3ed8a44e1'
 
 
 class UserVK:
     banned_friends = 0
+    friends_total = 0
 
     def __init__(self, vk_token, uid):
         self.token = vk_token
@@ -23,22 +25,35 @@ class UserVK:
             v='5.103'
         )
 
-    def get_groups_heap(self, f_list):
+    def get_friends(self):
         friend_set = set()
-        for friend in f_list:
-            time.sleep(1 / 3)
-            friend_groups = self.get_groups(uid=friend)
-            friend_set = friend_set | friend_groups
-            print('*', end='')
-        print()
+        params = self.get_params()
+        params['fields'] = 'deactivated'
+        response = requests.get('https://api.vk.com/method/friends.get', params)
+        friend_dict = response.json()['response']['items']
+        # print('friend_dict', friend_dict)
+        self.friends_total = len(friend_dict)
+        for friend in friend_dict:
+            # print(friend.get('is_closed'))
+            if friend.get('deactivated'):
+                self.banned_friends += 1
+            elif not friend.get('is_closed'):
+                friend_set.add(friend['id'])
+            else:
+                # print('friend', friend)
+                self.banned_friends += 1
         return friend_set
 
-    def get_friends(self):
-        time.sleep(1 / 3)
-        params = self.get_params()
-        response = requests.get('https://api.vk.com/method/friends.get', params)
-        friend_set = set(response.json()['response']['items'])
-        return friend_set
+    def get_groups_heap(self, f_list):
+        friends_groups_set = set()
+        counter = 0
+        for friend in f_list:
+            # time.sleep(1 / 3)
+            friend_groups = self.get_groups(uid=friend)
+            friends_groups_set = friends_groups_set | friend_groups
+            print('*', end='')
+        print()
+        return friends_groups_set
 
     def get_groups(self, uid=None):
         groups_set = set()
@@ -51,6 +66,8 @@ class UserVK:
         if not resp_err:
             groups_set = set(response.json()['response']['items'])
         else:
+            print('uid ', uid)
+            print('resp_err', resp_err)
             self.banned_friends += 1
         return groups_set
 
@@ -74,7 +91,7 @@ class UserVK:
             result_list.append({'name': name, 'gid': gid, 'members_count': members_count})
         with open('groups.json', 'w', encoding='utf-8') as data_file:
             json.dump(result_list, data_file, ensure_ascii=False, indent=2)
-            print('Данные о "секретных" группах пользователя записаны в файл groups.json')
+            print('Сведения о "секретных" группах пользователя записаны в файл groups.json')
 
 
 def users_search(uid):
@@ -114,7 +131,7 @@ def users_search(uid):
 
 
 if __name__ == '__main__':  # 'armo.appacha' 24863449 27406252 10754162 d.lonkin o.sevostyanova77 eshmargunov
-    input_id = input('Введите id пользователя ВК или его имя: ')
+    input_id = 'o.sevostyanova77'  # input('Введите id пользователя ВК или его имя: ')
     user_id = users_search(input_id)
     if user_id == None:
         print(f'Пользователь "{input_id}" не найден. Проверьте вводимые данные.')
@@ -125,9 +142,9 @@ if __name__ == '__main__':  # 'armo.appacha' 24863449 27406252 10754162 d.lonkin
     elif user_id == 'deleted':
         print(f'Пользователь "{input_id}" удалён либо не существует. Анализ невозможен.')
     else:
-        print(f'Пользователь "{input_id}" доступен для анализа ...')
+        print(f'Пользователь "{input_id}" (id{user_id}) доступен для анализа ...')
         test_user = UserVK(vk_token, user_id)
-        print('Друзей у пользователя: ', len(test_user.friends_set))
+        print('Друзей у пользователя: ', test_user.friends_total)
         print('Заблокированных или приватных профилей друзей:', test_user.banned_friends)
         print('Количество групп, в которых пользователь является участником: ', len(test_user.groups_set))
         print('Общее количество групп у всех друзей пользователя: ', len(test_user.groups_heap))
