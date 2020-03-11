@@ -47,10 +47,22 @@ class UserVK:
     def get_groups_heap(self, f_list):
         friends_groups_set = set()
         counter = 0
+        t_counter = len(f_list)
+        temp_list = list()
+        params = self.get_params()
         for friend in f_list:
+            counter +=1
+            t_counter -=1
+            temp_list.append(friend)
+            if counter == 25 or t_counter == 0:
+                params['code'] = f'var a = 0; var b =  {temp_list}; var s = ""; while (a != 25)'+'{s = s + API.groups.get({"user_id":b[a]}).items; a = a + 1;}; return s;'
+                response = requests.get('https://api.vk.com/method/execute', params)
+                friends_groups_set = friends_groups_set | set(response.json()['response'])
+                counter = 0
+                temp_list.clear()
             # time.sleep(1 / 3)
-            friend_groups = self.get_groups(uid=friend)
-            friends_groups_set = friends_groups_set | friend_groups
+            # friend_groups = self.get_groups(uid=friend)
+            # friends_groups_set = friends_groups_set | friend_groups
             print('*', end='')
         print()
         return friends_groups_set
