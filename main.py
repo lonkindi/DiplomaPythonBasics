@@ -55,9 +55,13 @@ class UserVK:
             t_counter -=1
             temp_list.append(friend)
             if counter == 25 or t_counter == 0:
-                params['code'] = f'var a = 0; var b =  {temp_list}; var s = ""; while (a != 25)'+'{s = s + API.groups.get({"user_id":b[a]}).items; a = a + 1;}; return s;'
+                params['code'] = f'var a = 0; var b =  {temp_list}; var s = ""; while (a != 25)'+'{s = s + API.groups.get({"user_id":b[a]}).items + ","; a = a + 1;}; return s;'
                 response = requests.get('https://api.vk.com/method/execute', params)
-                friends_groups_set = friends_groups_set | set(response.json()['response'])
+                response_set = response.json()['response']
+                # for str_item in str_response_set:
+                #     str_item = int(str_item)
+                print("response_set=", response_set)
+                friends_groups_set = friends_groups_set | response.json()['response']
                 counter = 0
                 temp_list.clear()
             # time.sleep(1 / 3)
